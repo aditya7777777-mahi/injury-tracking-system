@@ -1,0 +1,29 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Report {
+  id            String    @id @default(cuid())
+  userId        String
+  reporterName  String
+  injuryDateTime DateTime
+  status        String
+  injuries      Injury[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Injury {
+  id          String  @id @default(cuid())
+  location    String  // Changed from Json to String
+  bodyPart    String  @default("unknown")  // Add this field
+  reportId    String
+  report      Report  @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
