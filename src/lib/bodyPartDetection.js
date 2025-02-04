@@ -23,17 +23,12 @@ const BODY_REGIONS = {
 };
 
 export function detectBodyPart(point) {
-  // Get canvas size from the point's context
   const canvasWidth = point[0].canvas?.width || 400;
   const canvasHeight = point[0].canvas?.height || 600;
   
-  // Scale factors
-  const scaleX = canvasWidth / 400;
-  const scaleY = canvasHeight / 600;
-
-  // Scale the point back to base coordinates
-  const normalizedX = point[0].x / scaleX;
-  const normalizedY = point[0].y / scaleY;
+  // If coordinates are already normalized (0-1), scale them to base coordinates
+  const normalizedX = point[0].x <= 1 ? point[0].x * 400 : point[0].x * (400 / canvasWidth);
+  const normalizedY = point[0].y <= 1 ? point[0].y * 600 : point[0].y * (600 / canvasHeight);
 
   let bestMatch = 'unknown';
   let smallestDistance = Infinity;

@@ -152,17 +152,31 @@ function HomeContent() {
       label: 'All Reports',
       children: (
         <>
-          <Space style={{ marginBottom: 16 }}>
+          <Space 
+            style={{ 
+              marginBottom: 16,
+              width: '100%',
+              display: 'flex',
+              flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+              gap: window.innerWidth <= 768 ? '12px' : '8px'
+            }}
+          >
             <Input
               placeholder="Search by reporter name"
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 200 }}
+              style={{ 
+                width: window.innerWidth <= 768 ? '100%' : 200,
+                maxWidth: '100%'
+              }}
             />
             <DatePicker.RangePicker
               onChange={(dates) => setDateRange(dates)}
-              style={{ width: 300 }}
+              style={{ 
+                width: window.innerWidth <= 768 ? '100%' : 300,
+                maxWidth: '100%'
+              }}
             />
           </Space>
           <Table
@@ -173,8 +187,10 @@ function HomeContent() {
             pagination={{
               defaultPageSize: 10,
               showSizeChanger: true,
-              showTotal: (total) => `Total ${total} reports`
+              showTotal: (total) => `Total ${total} reports`,
+              responsive: true
             }}
+            scroll={{ x: 'max-content' }}
           />
         </>
       )
@@ -205,7 +221,7 @@ function HomeContent() {
     <ConfigProvider theme={theme}>
       <Layout style={{ minHeight: '100vh' }}>
         <Header style={{ 
-          padding: '24px',
+          padding: '16px',
           display: 'flex',
           flexDirection: 'column',
           height: 'auto',
@@ -215,17 +231,38 @@ function HomeContent() {
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            marginBottom: '12px'
+            marginBottom: '12px',
+            flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+            gap: window.innerWidth <= 768 ? '12px' : '0'
           }}>
-            <Title level={2} style={{ margin: 0 }}>Injury Tracking System</Title>
-            <Space>
-              <span style={{ marginRight: '16px' }}>
+            <Title 
+              level={2} 
+              style={{ 
+                margin: 0,
+                fontSize: window.innerWidth <= 768 ? '20px' : '24px',
+                textAlign: window.innerWidth <= 768 ? 'center' : 'left'
+              }}
+            >
+              Injury Tracking System
+            </Title>
+            <Space 
+              direction={window.innerWidth <= 768 ? 'vertical' : 'horizontal'}
+              style={{
+                width: window.innerWidth <= 768 ? '100%' : 'auto',
+                justifyContent: window.innerWidth <= 768 ? 'center' : 'flex-end'
+              }}
+            >
+              <span style={{ 
+                marginRight: window.innerWidth <= 768 ? '0' : '16px',
+                fontSize: window.innerWidth <= 768 ? '14px' : '16px'
+              }}>
                 <UserOutlined /> {user?.email}
               </span>
               <Button 
                 icon={<LogoutOutlined />}
                 onClick={logout}
                 type="link"
+                size={window.innerWidth <= 768 ? 'small' : 'middle'}
               >
                 Logout
               </Button>
@@ -239,6 +276,7 @@ function HomeContent() {
               marginBottom: 0,
               borderBottom: '1px solid #f0f0f0'
             }}
+            size={window.innerWidth <= 768 ? 'small' : 'middle'}
           />
         </Header>
         

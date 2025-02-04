@@ -59,6 +59,22 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
     redrawCanvas(ctx, imageRef.current, injuries);
   }, [injuries, isCanvasReady]);
 
+  // Add these helper functions
+  const normalizeCoordinates = (x, y, canvas) => {
+    return {
+      x: x / canvas.width,
+      y: y / canvas.height
+    };
+  };
+
+  const denormalizeCoordinates = (normalizedX, normalizedY, canvas) => {
+    return {
+      x: normalizedX * canvas.width,
+      y: normalizedY * canvas.height
+    };
+  };
+
+  // Update the redrawCanvas function to handle normalized coordinates
   const redrawCanvas = (ctx, img, injuries) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.drawImage(img, 0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -73,20 +89,25 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
     });
   };
 
+  // Update drawInjuryPath function
   const drawInjuryPath = (ctx, path, bodyPart) => {
-    // Draw the injury outline
+    // Transform the stored normalized coordinates back to canvas coordinates
+    const denormalizedPath = path.map(point => 
+      denormalizeCoordinates(point.normalizedX, point.normalizedY, ctx.canvas)
+    );
+
     ctx.beginPath();
-    ctx.moveTo(path[0].x, path[0].y);
-    path.forEach(point => {
+    ctx.moveTo(denormalizedPath[0].x, denormalizedPath[0].y);
+    denormalizedPath.forEach(point => {
       ctx.lineTo(point.x, point.y);
     });
     ctx.closePath();
     ctx.strokeStyle = '#ff0000';
     ctx.stroke();
 
-    // Calculate center point
-    const centerX = path.reduce((sum, p) => sum + p.x, 0) / path.length;
-    const centerY = path.reduce((sum, p) => sum + p.y, 0) / path.length;
+    // Calculate center point using denormalized coordinates
+    const centerX = denormalizedPath.reduce((sum, p) => sum + p.x, 0) / denormalizedPath.length;
+    const centerY = denormalizedPath.reduce((sum, p) => sum + p.y, 0) / denormalizedPath.length;
     
     // Draw label background
     const labelWidth = ctx.measureText(bodyPart).width + 10;
@@ -101,8 +122,10 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
     ctx.fillText(bodyPart, centerX, centerY);
   };
 
-  const drawInjuryMarker = (ctx, x, y, bodyPart) => {
-    // Draw circle
+  // Update drawInjuryMarker function
+  const drawInjuryMarker = (ctx, normalizedX, normalizedY, bodyPart) => {
+    const { x, y } = denormalizeCoordinates(normalizedX, normalizedY, ctx.canvas);
+    
     ctx.beginPath();
     ctx.arc(x, y, 5, 0, 2 * Math.PI);
     ctx.fillStyle = '#ff0000';
@@ -122,68 +145,89 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
   const getCoordinates = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
+    
+    // Get proper coordinates for both touch and mouse events
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Calculate scale factors based on canvas's display size vs actual size
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
-    
-    return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY
-    };
+
+    // Calculate coordinates with proper scaling
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
+
+    return { x, y };
   };
 
   const handleMouseDown = (e) => {
+    e.preventDefault(); // Prevent default touch behavior
     const coords = getCoordinates(e);
     setIsDrawing(true);
     setCurrentPath([coords]);
   };
 
   const handleMouseMove = (e) => {
+    e.preventDefault(); // Prevent default touch behavior
     if (!isDrawing) return;
+    
     const coords = getCoordinates(e);
     setCurrentPath(prev => [...prev, coords]);
     
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.src = '/assets/body-map.jpg';
     
-    redrawCanvas(ctx, img, injuries);
+    redrawCanvas(ctx, imageRef.current, injuries);
     
+    // Draw current path
     ctx.beginPath();
     ctx.moveTo(currentPath[0].x, currentPath[0].y);
     currentPath.forEach(point => {
       ctx.lineTo(point.x, point.y);
     });
+    ctx.lineTo(coords.x, coords.y);
     ctx.strokeStyle = '#ff0000';
     ctx.stroke();
   };
 
-  const handleMouseUp = () => {
+  // Update handleMouseUp function
+  const handleMouseUp = (e) => {
+    e.preventDefault(); // Prevent default touch behavior
     if (!isDrawing) return;
     setIsDrawing(false);
     
     if (currentPath.length > 1) {
-      // Calculate center point of the drawn path
-      const centerX = currentPath.reduce((sum, p) => sum + p.x, 0) / currentPath.length;
-      const centerY = currentPath.reduce((sum, p) => sum + p.y, 0) / currentPath.length;
+      const canvas = canvasRef.current;
       
-      // Detect body part from the center point
+      // Normalize the path coordinates
+      const normalizedPath = currentPath.map(point => {
+        const normalized = normalizeCoordinates(point.x, point.y, canvas);
+        return {
+          ...point,
+          normalizedX: normalized.x,
+          normalizedY: normalized.y
+        };
+      });
+
+      // Calculate center point using normalized coordinates
+      const centerX = normalizedPath.reduce((sum, p) => sum + p.normalizedX, 0) / normalizedPath.length;
+      const centerY = normalizedPath.reduce((sum, p) => sum + p.normalizedY, 0) / normalizedPath.length;
+      
       const bodyPart = detectBodyPart([{ 
-        x: centerX, 
-        y: centerY,
-        canvas: canvasRef.current 
+        x: centerX * canvas.width, // Convert back to pixels for detection
+        y: centerY * canvas.height,
+        canvas: canvas 
       }]);
       
-      // Store only the rectangle coordinates for the detected body part
       const newInjury = {
         id: injuries.length + 1,
         location: JSON.stringify({
-          x: centerX,
+          x: centerX, // Store normalized coordinates
           y: centerY
         }),
         bodyPart: bodyPart,
-        // Keep path only for drawing
-        drawPath: currentPath
+        drawPath: normalizedPath // Store normalized path
       };
       
       const newInjuries = [...injuries, newInjury];
@@ -223,7 +267,8 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
             border: '1px solid #ccc',
             maxWidth: '100%',
             height: 'auto',
-            objectFit: 'contain'
+            objectFit: 'contain',
+            touchAction: 'none' // Prevent default touch actions
           }}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -232,6 +277,7 @@ const BodyMap = ({ onChange, initialInjuries = [] }) => {
           onTouchStart={handleMouseDown}
           onTouchMove={handleMouseMove}
           onTouchEnd={handleMouseUp}
+          onTouchCancel={handleMouseUp}
         />
       </div>
       <Space className="mt-4 w-full justify-center">
